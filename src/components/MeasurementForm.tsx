@@ -29,6 +29,13 @@ function fieldStatus(value: number, hardMin: number, recommended: number): 'ok' 
   return 'ok'
 }
 
+// Ceiling height is non-monotonic: red < 2.7m (8.86ft), green 2.7–3.2m, amber > 3.2m (10.5ft)
+function ceilingStatus(ft: number): 'ok' | 'warn' | 'error' {
+  if (ft < 8.86)  return 'error'
+  if (ft <= 10.5) return 'ok'
+  return 'warn'
+}
+
 // ── Slider Field ──────────────────────────────────────────────────────────────
 interface SliderProps {
   label: string
@@ -77,7 +84,7 @@ function SliderField({ label, hint, displayValue, min, max, step, unitLabel, sta
 
   const fillColor =
     status === 'error' ? '#EF4444' :
-    status === 'warn'  ? '#F59E0B' : '#CC1B32'
+    status === 'warn'  ? '#F59E0B' : '#22C55E'
 
   const trackStyle = {
     background: `linear-gradient(to right, ${fillColor} ${pct}%, #E5E5E5 ${pct}%)`,
@@ -126,11 +133,6 @@ function SliderField({ label, hint, displayValue, min, max, step, unitLabel, sta
       {/* Range labels */}
       <div className="flex justify-between text-[10px] text-gray-400 select-none">
         <span>&lt; {min} {unitLabel}</span>
-        <div className="flex items-center gap-2">
-          {status === 'error' && <span className="text-red-500 font-semibold">Below minimum</span>}
-          {status === 'warn'  && <span className="text-amber-500 font-semibold">Below recommended</span>}
-          {status === 'ok'    && <span className="text-green-600 font-semibold">✓ Good</span>}
-        </div>
         <span>&gt; {max} {unitLabel}</span>
       </div>
     </div>
@@ -150,21 +152,12 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
   const set = (key: keyof Measurements, dispVal: number) =>
     onChange({ ...values, [key]: toFeet(dispVal) })
 
-  // Slider configs: [hardMin, recommended, sliderMin, sliderMax, step]
-  // expressed in the current display unit
+  // Slider range configs in current display unit
   const cfg = {
-    ceilingHeight:  isMetric
-      ? { min: 2.4, max: 5.0, step: 0.1, hardMin: 2.7, rec: 3.0 }
-      : { min: 7,   max: 16,  step: 0.1, hardMin: 9,   rec: 10  },
-    roomDepth:      isMetric
-      ? { min: 3.0, max: 8.5, step: 0.1, hardMin: 4.6, rec: 5.5 }
-      : { min: 10,  max: 28,  step: 0.1, hardMin: 15,  rec: 18  },
-    roomWidth:      isMetric
-      ? { min: 2.4, max: 7.3, step: 0.1, hardMin: 3.7, rec: 4.3 }
-      : { min: 8,   max: 24,  step: 0.1, hardMin: 12,  rec: 14  },
-    screenDistance: isMetric
-      ? { min: 1.8, max: 4.6, step: 0.1, hardMin: 1.8, rec: 2.4 }
-      : { min: 6,   max: 15,  step: 0.1, hardMin: 6,   rec: 8   },
+    ceilingHeight:  isMetric ? { min: 2.1, max: 4.5, step: 0.1 } : { min: 7,  max: 15, step: 0.1 },
+    roomDepth:      isMetric ? { min: 3.0, max: 8.5, step: 0.1 } : { min: 10, max: 28, step: 0.5 },
+    roomWidth:      isMetric ? { min: 2.0, max: 7.0, step: 0.1 } : { min: 8,  max: 24, step: 0.5 },
+    screenDistance: isMetric ? { min: 1.8, max: 4.6, step: 0.1 } : { min: 6,  max: 15, step: 0.1 },
   }
 
   return (
@@ -198,7 +191,7 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
         {...cfg.ceilingHeight}
         unitLabel={mLabel}
         onChange={v => set('ceilingHeight', v)}
-        status={fieldStatus(values.ceilingHeight, 9, 10)}
+        status={ceilingStatus(values.ceilingHeight)}
       />
 
       {/* Room Depth */}
@@ -209,7 +202,7 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
         {...cfg.roomDepth}
         unitLabel={mLabel}
         onChange={v => set('roomDepth', v)}
-        status={fieldStatus(values.roomDepth, 15, 18)}
+        status={fieldStatus(values.roomDepth, 13.78, 16.4)}
       />
 
       {/* Room Width */}
@@ -220,7 +213,7 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
         {...cfg.roomWidth}
         unitLabel={mLabel}
         onChange={v => set('roomWidth', v)}
-        status={fieldStatus(values.roomWidth, 12, 14)}
+        status={fieldStatus(values.roomWidth, 9.84, 13.78)}
       />
 
       {/* Screen Distance */}
@@ -231,12 +224,7 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
         {...cfg.screenDistance}
         unitLabel={mLabel}
         onChange={v => set('screenDistance', v)}
-        status={(() => {
-          const s = fieldStatus(values.screenDistance, 6, 8)
-          // Also flag if screen distance ≥ room depth
-          if (values.screenDistance >= values.roomDepth) return 'error'
-          return s
-        })()}
+        status={values.screenDistance >= values.roomDepth ? 'error' : fieldStatus(values.screenDistance, 6, 8)}
       />
 
       {/* Ceiling Material */}

@@ -9,7 +9,7 @@ import ResultsPanel from './ResultsPanel'
 
 const DEFAULTS: Measurements = {
   ceilingHeight:  10,
-  roomDepth:      18,
+  roomDepth:      14,
   roomWidth:      14,
   screenDistance: 10,
   ceilingMaterial: '',
@@ -47,12 +47,20 @@ function LiveBadge({ values }: { values: Measurements }) {
   )
 }
 
-const STAT_LABELS = [
-  { key: 'ceilingHeight',  label: 'Ceiling Height',  ok: 10, warn: 9  },
-  { key: 'roomDepth',      label: 'Room Depth',       ok: 18, warn: 15 },
-  { key: 'roomWidth',      label: 'Room Width',       ok: 14, warn: 12 },
-  { key: 'screenDistance', label: 'Screen Distance',  ok: 8,  warn: 6  },
-] as const
+type StatColor = 'green' | 'amber' | 'red'
+const statColorCls: Record<StatColor, string> = {
+  green: 'text-green-600',
+  amber: 'text-amber-500',
+  red:   'text-red-500',
+}
+
+// Values stored in ft. Thresholds: 2.7m=8.86ft, 3.2m=10.5ft, 4.2m=13.78ft, 5.0m=16.4ft, 3.0m=9.84ft
+const STAT_LABELS: { key: keyof Measurements; label: string; color: (v: number) => StatColor }[] = [
+  { key: 'ceilingHeight',  label: 'Ceiling Height',  color: v => v < 8.86 ? 'red' : v <= 10.5 ? 'green' : 'amber' },
+  { key: 'roomDepth',      label: 'Room Depth',       color: v => v < 13.78 ? 'red' : v < 16.4 ? 'amber' : 'green' },
+  { key: 'roomWidth',      label: 'Room Width',       color: v => v < 9.84 ? 'red' : v < 13.78 ? 'amber' : 'green' },
+  { key: 'screenDistance', label: 'Screen Distance',  color: v => v < 6 ? 'red' : v < 8 ? 'amber' : 'green' },
+]
 
 function fmtStat(ft: number, unit: UnitSystem) {
   return unit === 'metric' ? `${(ft * 0.3048).toFixed(1)} m` : `${ft.toFixed(1)} ft`
@@ -147,7 +155,7 @@ export default function RoomValidator() {
                   return (
                     <div key={s.key} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
                       <span className="text-xs text-gray-400">{s.label}</span>
-                      <span className={`text-xs font-bold ${v >= s.ok ? 'text-green-600' : v >= s.warn ? 'text-amber-500' : 'text-red-500'}`}>
+                      <span className={`text-xs font-bold ${statColorCls[s.color(v)]}`}>
                         {fmtStat(v, unit)}
                       </span>
                     </div>

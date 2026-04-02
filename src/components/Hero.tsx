@@ -1,10 +1,9 @@
 import { ArrowDown, CheckCircle } from 'lucide-react'
 
 const specs = [
-  { label: 'Min. ceiling height', value: '9 ft' },
-  { label: 'Min. room depth',     value: '15 ft' },
-  { label: 'Min. room width',     value: '12 ft' },
-  { label: 'Min. screen size',    value: '96"' },
+  { label: 'Rec. ceiling height', value: '10 ft' },
+  { label: 'Rec. room depth',     value: '14 ft' },
+  { label: 'Rec. room width',     value: '14 ft' },
 ]
 
 export default function Hero() {
@@ -48,7 +47,7 @@ export default function Hero() {
             </p>
 
             {/* Key specs strip */}
-            <div className="grid grid-cols-2 gap-3 mb-10">
+            <div className="grid grid-cols-3 gap-3 mb-10">
               {specs.map(s => (
                 <div key={s.label} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-lg px-3.5 py-2.5">
                   <CheckCircle size={14} className="text-brand shrink-0" />

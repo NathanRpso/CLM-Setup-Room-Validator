@@ -1,54 +1,56 @@
 import type { Measurements, ValidationResult, ValidationIssue, Component } from './types'
 
+// All thresholds stored in feet. Metric equivalents noted for reference.
 const T = {
-  ceilingHeight:  { hardMin: 9,  recommended: 10 },
-  roomDepth:      { hardMin: 15, recommended: 18 },
-  roomWidth:      { hardMin: 12, recommended: 14 },
-  screenDistance: { hardMin: 6,  recommended: 8  },
+  ceilingHeight:  { hardMin: 8.86, hardMax: 10.5 },  // 2.7m – 3.2m (range, not higher-is-better)
+  roomDepth:      { hardMin: 13.78, recommended: 16.4 }, // 4.2m, 5.0m
+  roomWidth:      { hardMin: 9.84,  recommended: 13.78 }, // 3.0m, 4.2m
+  screenDistance: { hardMin: 6,     recommended: 8  },
 }
 
 export function validate(m: Measurements): ValidationResult {
   const issues: ValidationIssue[] = []
 
+  // Ceiling height: supported range is 2.7m–3.2m (8.86ft–10.5ft)
   if (m.ceilingHeight < T.ceilingHeight.hardMin) {
     issues.push({
       field: 'ceilingHeight', severity: 'error',
-      message: `${m.ceilingHeight}ft ceiling is below the 9ft minimum.`,
-      recommendation: 'CLM PRO requires at least 9ft of ceiling clearance. Consider the MLM2PRO for lower ceiling spaces.',
+      message: `Ceiling height of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) is below the 2.7m minimum.`,
+      recommendation: 'CLM PRO requires at least 2.7m (9ft) of ceiling clearance. Consider the MLM2PRO for lower ceiling spaces.',
     })
-  } else if (m.ceilingHeight < T.ceilingHeight.recommended) {
+  } else if (m.ceilingHeight > T.ceilingHeight.hardMax) {
     issues.push({
       field: 'ceilingHeight', severity: 'warning',
-      message: `${m.ceilingHeight}ft ceiling is workable but tight.`,
-      recommendation: 'A ceiling drop mount is recommended to bring the CLM to its optimal 9–10ft sensing height.',
+      message: `Ceiling height of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) exceeds the 3.2m optimal range.`,
+      recommendation: 'A ceiling drop mount is required to lower the CLM PRO to its optimal 2.7–3.2m sensing height.',
     })
   }
 
   if (m.roomDepth < T.roomDepth.hardMin) {
     issues.push({
       field: 'roomDepth', severity: 'error',
-      message: `${m.roomDepth}ft room depth is below the 15ft minimum.`,
-      recommendation: 'A minimum of 15ft is required from back wall to screen for safe ball flight.',
+      message: `Room depth of ${m.roomDepth.toFixed(1)}ft (${(m.roomDepth * 0.3048).toFixed(1)}m) is below the 4.2m minimum.`,
+      recommendation: 'A minimum of 4.2m (14ft) is required from back wall to hitting position for safe ball flight.',
     })
   } else if (m.roomDepth < T.roomDepth.recommended) {
     issues.push({
       field: 'roomDepth', severity: 'warning',
-      message: `${m.roomDepth}ft is functional but 18ft+ improves data accuracy.`,
-      recommendation: 'At this depth, trajectory data for driver may have reduced accuracy.',
+      message: `Room depth of ${m.roomDepth.toFixed(1)}ft (${(m.roomDepth * 0.3048).toFixed(1)}m) is in the functional but tight range.`,
+      recommendation: 'This depth is workable but may feel tight depending on golfer height and technique. Confirm the space feels comfortable before purchasing.',
     })
   }
 
   if (m.roomWidth < T.roomWidth.hardMin) {
     issues.push({
       field: 'roomWidth', severity: 'error',
-      message: `${m.roomWidth}ft width is below the 12ft minimum for safe swings.`,
-      recommendation: '12ft of lateral clearance is the absolute minimum for a safe swing path.',
+      message: `Room width of ${m.roomWidth.toFixed(1)}ft (${(m.roomWidth * 0.3048).toFixed(1)}m) is below the 3.0m minimum.`,
+      recommendation: '3.0m (10ft) of lateral clearance is the absolute minimum for a safe swing path.',
     })
   } else if (m.roomWidth < T.roomWidth.recommended) {
     issues.push({
       field: 'roomWidth', severity: 'warning',
-      message: `${m.roomWidth}ft provides limited lateral swing room.`,
-      recommendation: '14ft+ recommended for comfortable clearance on both sides during a full swing.',
+      message: `Room width of ${m.roomWidth.toFixed(1)}ft (${(m.roomWidth * 0.3048).toFixed(1)}m) provides limited lateral swing clearance.`,
+      recommendation: '4.2m (14ft)+ recommended for comfortable clearance on both sides during a full swing.',
     })
   }
 
@@ -171,15 +173,15 @@ export function getComponents(m: Measurements): Component[] {
     },
   )
 
-  // Ceiling drop mount — recommended when ceiling is high (CLM would sit too far above ideal sensing height)
-  if (m.ceilingHeight > 11) {
+  // Ceiling drop mount — required when ceiling > 3.2m (10.5ft), which puts CLM above its sensing range
+  if (m.ceilingHeight > 10.5) {
     list.push({
       name: 'Ceiling Drop Mount',
-      category: 'Recommended',
+      category: 'Essential',
       included: false,
-      required: false,
-      reason: `Your ${m.ceilingHeight}ft ceiling would place the CLM above the ideal 9–10ft sensing height. A VESA-compatible drop mount pole lowers it to the correct position.`,
-      note: 'Available at most AV retailers. Look for a ceiling projector/VESA mount with adjustable drop length.',
+      required: true,
+      reason: `Your ceiling of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) exceeds the 3.2m optimal sensing height. A drop mount is required to position the CLM PRO correctly.`,
+      note: 'Look for a VESA-compatible ceiling drop mount with adjustable pole length.',
     })
   }
 
