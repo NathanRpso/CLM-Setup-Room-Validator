@@ -23,18 +23,6 @@ const ceilingMaterials: { value: CeilingMaterial; label: string; sub: string }[]
 const ftToM  = (ft: number) => Math.round(ft * 0.3048 * 10) / 10
 const mToFt  = (m: number)  => Math.round(m  / 0.3048 * 10) / 10
 
-function fieldStatus(value: number, hardMin: number, recommended: number): 'ok' | 'warn' | 'error' {
-  if (value < hardMin) return 'error'
-  if (value < recommended) return 'warn'
-  return 'ok'
-}
-
-// Ceiling height is non-monotonic: red < 2.7m (8.86ft), green 2.7–3.2m, amber > 3.2m (10.5ft)
-function ceilingStatus(ft: number): 'ok' | 'warn' | 'error' {
-  if (ft < 8.86)  return 'error'
-  if (ft <= 10.5) return 'ok'
-  return 'warn'
-}
 
 // ── Slider Field ──────────────────────────────────────────────────────────────
 interface SliderProps {
@@ -48,11 +36,10 @@ interface SliderProps {
   max: number
   step: number
   unitLabel: string
-  status?: 'ok' | 'warn' | 'error'
   onChange: (displayVal: number) => void
 }
 
-function SliderField({ label, hint, displayValue, min, max, step, unitLabel, status, onChange }: SliderProps) {
+function SliderField({ label, hint, displayValue, min, max, step, unitLabel, onChange }: SliderProps) {
   const [raw, setRaw]       = useState(() => displayValue.toFixed(1))
   const [focused, setFocused] = useState(false)
 
@@ -82,9 +69,7 @@ function SliderField({ label, hint, displayValue, min, max, step, unitLabel, sta
   const atMin   = displayValue <= min
   const atMax   = displayValue >= max
 
-  const fillColor =
-    status === 'error' ? '#EF4444' :
-    status === 'warn'  ? '#F59E0B' : '#22C55E'
+  const fillColor = '#6B7280'
 
   const trackStyle = {
     background: `linear-gradient(to right, ${fillColor} ${pct}%, #E5E5E5 ${pct}%)`,
@@ -152,12 +137,13 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
   const set = (key: keyof Measurements, dispVal: number) =>
     onChange({ ...values, [key]: toFeet(dispVal) })
 
-  // Slider range configs in current display unit
+  // Slider ranges centred on the default value: max = 2×default − min
+  // Imperial defaults: ceiling=10ft, depth=14ft, width=14ft
+  // Metric defaults:   ceiling≈3.0m, depth≈4.3m, width≈4.3m
   const cfg = {
-    ceilingHeight:  isMetric ? { min: 2.1, max: 4.5, step: 0.1 } : { min: 7,  max: 15, step: 0.1 },
-    roomDepth:      isMetric ? { min: 3.0, max: 8.5, step: 0.1 } : { min: 10, max: 28, step: 0.5 },
-    roomWidth:      isMetric ? { min: 2.0, max: 7.0, step: 0.1 } : { min: 8,  max: 24, step: 0.5 },
-    screenDistance: isMetric ? { min: 1.8, max: 4.6, step: 0.1 } : { min: 6,  max: 15, step: 0.1 },
+    ceilingHeight:  isMetric ? { min: 2.1, max: 3.9, step: 0.1 } : { min: 7,  max: 13, step: 0.1 },
+    roomDepth:      isMetric ? { min: 3.0, max: 5.6, step: 0.1 } : { min: 10, max: 18, step: 0.5 },
+    roomWidth:      isMetric ? { min: 2.0, max: 6.6, step: 0.1 } : { min: 8,  max: 20, step: 0.5 },
   }
 
   return (
@@ -186,45 +172,31 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
       {/* Ceiling Height */}
       <SliderField
         label="Ceiling Height"
-        hint="Measure from the floor to the ceiling at the planned CLM mount point — not at the room edges."
+        hint="Measure from the floor to the ceiling at the centre of the room, directly above where you'll be hitting. Avoid measuring at the walls where the ceiling may be lower."
         displayValue={toDisplay(values.ceilingHeight)}
         {...cfg.ceilingHeight}
         unitLabel={mLabel}
         onChange={v => set('ceilingHeight', v)}
-        status={ceilingStatus(values.ceilingHeight)}
       />
 
       {/* Room Depth */}
       <SliderField
         label="Room Depth"
-        hint="Total depth of the room from back wall (behind screen) to front wall, in the direction of ball flight."
+        hint="Measure the full length of the room in the direction you'll be hitting — from the wall where your screen will hang to the wall behind you."
         displayValue={toDisplay(values.roomDepth)}
         {...cfg.roomDepth}
         unitLabel={mLabel}
         onChange={v => set('roomDepth', v)}
-        status={fieldStatus(values.roomDepth, 13.78, 16.4)}
       />
 
       {/* Room Width */}
       <SliderField
         label="Room Width"
-        hint="Full side-to-side width of the space — determines safe swing clearance."
+        hint="Measure the full width of the room from side wall to side wall, perpendicular to your swing direction. This determines how much clearance you'll have on either side during a full swing."
         displayValue={toDisplay(values.roomWidth)}
         {...cfg.roomWidth}
         unitLabel={mLabel}
         onChange={v => set('roomWidth', v)}
-        status={fieldStatus(values.roomWidth, 9.84, 13.78)}
-      />
-
-      {/* Screen Distance */}
-      <SliderField
-        label="Distance from Screen"
-        hint="Distance from your screen or impact net to where the golfer stands to hit. This determines the CLM PRO mounting position on the ceiling."
-        displayValue={toDisplay(values.screenDistance)}
-        {...cfg.screenDistance}
-        unitLabel={mLabel}
-        onChange={v => set('screenDistance', v)}
-        status={values.screenDistance >= values.roomDepth ? 'error' : fieldStatus(values.screenDistance, 6, 8)}
       />
 
       {/* Ceiling Material */}
@@ -232,7 +204,7 @@ export default function MeasurementForm({ values, onChange, unit, onUnitChange }
         <div className="flex items-center gap-1.5">
           <label className="text-sm font-semibold text-gray-800">Ceiling Material</label>
           <button
-            title="Ceiling material determines which mounting hardware is required."
+            title="Select what your ceiling is made of. This determines which mounting hardware you'll need — some materials require additional anchor kits not included with the CLM PRO."
             className="text-gray-300 hover:text-gray-500 transition-colors"
             tabIndex={-1}
           >

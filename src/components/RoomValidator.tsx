@@ -8,10 +8,9 @@ import RoomDiagram from './RoomDiagram'
 import ResultsPanel from './ResultsPanel'
 
 const DEFAULTS: Measurements = {
-  ceilingHeight:  10,
-  roomDepth:      14,
-  roomWidth:      14,
-  screenDistance: 10,
+  ceilingHeight:   10,
+  roomDepth:       14,
+  roomWidth:       14,
   ceilingMaterial: '',
 }
 
@@ -21,46 +20,14 @@ function paramsToMeasurements(): Partial<Measurements> {
   const ch = parseFloat(p.get('ch') ?? '')
   const rd = parseFloat(p.get('rd') ?? '')
   const rw = parseFloat(p.get('rw') ?? '')
-  const sd = parseFloat(p.get('sd') ?? '')
   const cm = p.get('cm') as Measurements['ceilingMaterial'] | null
   if (!isNaN(ch)) out.ceilingHeight  = ch
   if (!isNaN(rd)) out.roomDepth      = rd
   if (!isNaN(rw)) out.roomWidth      = rw
-  if (!isNaN(sd)) out.screenDistance = sd
   if (cm)         out.ceilingMaterial = cm
   return out
 }
 
-function LiveBadge({ values }: { values: Measurements }) {
-  if (!isComplete(values)) return null
-  const r = validate(values)
-  const cfg = {
-    compatible:   { label: 'Compatible',     cls: 'text-green-700 bg-green-100 border-green-200' },
-    conditional:  { label: 'Check issues',   cls: 'text-amber-700 bg-amber-100 border-amber-200' },
-    incompatible: { label: 'Not compatible', cls: 'text-red-700   bg-red-100   border-red-200'   },
-  }
-  const c = cfg[r.status]
-  return (
-    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${c.cls}`}>
-      {c.label}
-    </span>
-  )
-}
-
-type StatColor = 'green' | 'amber' | 'red'
-const statColorCls: Record<StatColor, string> = {
-  green: 'text-green-600',
-  amber: 'text-amber-500',
-  red:   'text-red-500',
-}
-
-// Values stored in ft. Thresholds: 2.7m=8.86ft, 3.2m=10.5ft, 4.2m=13.78ft, 5.0m=16.4ft, 3.0m=9.84ft
-const STAT_LABELS: { key: keyof Measurements; label: string; color: (v: number) => StatColor }[] = [
-  { key: 'ceilingHeight',  label: 'Ceiling Height',  color: v => v < 8.86 ? 'red' : v <= 10.5 ? 'green' : 'amber' },
-  { key: 'roomDepth',      label: 'Room Depth',       color: v => v < 13.78 ? 'red' : v < 16.4 ? 'amber' : 'green' },
-  { key: 'roomWidth',      label: 'Room Width',       color: v => v < 9.84 ? 'red' : v < 13.78 ? 'amber' : 'green' },
-  { key: 'screenDistance', label: 'Screen Distance',  color: v => v < 6 ? 'red' : v < 8 ? 'amber' : 'green' },
-]
 
 function fmtStat(ft: number, unit: UnitSystem) {
   return unit === 'metric' ? `${(ft * 0.3048).toFixed(1)} m` : `${ft.toFixed(1)} ft`
@@ -71,15 +38,16 @@ export default function RoomValidator() {
   const [values, setValues]         = useState<Measurements>({ ...DEFAULTS, ...savedParams })
   const [unit, setUnit]             = useState<UnitSystem>('imperial')
   const [showResults, setShowResults] = useState(false)
+  const [flipped, setFlipped]       = useState(false)
 
   useEffect(() => {
     if (isComplete(values)) {
-      window.history.replaceState(null, '', `?ch=${values.ceilingHeight}&rd=${values.roomDepth}&rw=${values.roomWidth}&sd=${values.screenDistance}&cm=${values.ceilingMaterial}`)
+      window.history.replaceState(null, '', `?ch=${values.ceilingHeight}&rd=${values.roomDepth}&rw=${values.roomWidth}&cm=${values.ceilingMaterial}`)
     }
   }, [values])
 
   useEffect(() => {
-    if (Object.keys(savedParams).length === 5 && isComplete({ ...DEFAULTS, ...savedParams })) {
+    if (Object.keys(savedParams).length === 4 && isComplete({ ...DEFAULTS, ...savedParams })) {
       setShowResults(true)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -90,9 +58,11 @@ export default function RoomValidator() {
     setTimeout(() => document.getElementById('form-section')?.scrollIntoView({ behavior: 'smooth' }), 50)
   }, [])
 
-  const complete = isComplete(values)
-  const result   = complete ? validate(values) : null
-  const comps    = complete ? getComponents(values) : []
+  const complete  = isComplete(values)
+  const result    = complete ? validate(values, unit) : null
+  const allComps  = complete ? getComponents(values, unit) : []
+  const comps     = allComps.filter(c => c.category !== 'InBox')
+  const inBox     = allComps.filter(c => c.category === 'InBox')
 
   return (
     <section id="validator" className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -105,14 +75,13 @@ export default function RoomValidator() {
         </div>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight">
-            {showResults ? 'Room Compatibility Summary' : 'Enter your room dimensions'}
+            {showResults ? 'Compatibility Summary' : 'Enter your room dimensions'}
           </h2>
-          {!showResults && <LiveBadge values={values} />}
         </div>
         <p className="text-gray-400 mt-2 text-sm">
           {showResults
-            ? 'Review your results and complete component list below.'
-            : 'Adjust the sliders to match your space. The 3D diagram updates live.'}
+            ? 'Review your results below.'
+            : 'Adjust the sliders or input your measurements.'}
         </p>
       </div>
 
@@ -144,72 +113,128 @@ export default function RoomValidator() {
               </div>
             </div>
 
-            {/* Diagram */}
+            {/* Simplified 3D preview */}
             <div className="lg:sticky lg:top-[120px]">
-              <RoomDiagram values={values} isComplete={complete} status={result?.status} unit={unit} />
-
-              {/* Quick stats */}
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {STAT_LABELS.map(s => {
-                  const v = values[s.key] as number
-                  return (
-                    <div key={s.key} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-                      <span className="text-xs text-gray-400">{s.label}</span>
-                      <span className={`text-xs font-bold ${statColorCls[s.color(v)]}`}>
-                        {fmtStat(v, unit)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
+              <RoomDiagram values={values} isComplete={complete} unit={unit} simplified flipped={flipped} onFlip={() => setFlipped(f => !f)} />
             </div>
           </div>
 
         ) : (
           /* ── RESULTS STATE ───────────────────────────────────── */
-          <div className="grid lg:grid-cols-[1.15fr_1fr] gap-8 items-start">
+          <div className="space-y-8">
 
-            {/* Left: diagram + measurements summary with back button */}
-            <div className="lg:sticky lg:top-[120px] space-y-4">
-              <RoomDiagram values={values} isComplete={true} status={result?.status} unit={unit} />
+            {/* Top 2-col: visualiser + verdict */}
+            <div className="grid lg:grid-cols-[1.15fr_1fr] gap-8">
 
-              {/* Measurement summary card with edit button */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                    Your Measurements
+              {/* Left: visualiser + measurements */}
+              <div className="lg:sticky lg:top-[120px] self-start space-y-3">
+                <RoomDiagram values={values} isComplete={true} status={result?.status} unit={unit} flipped={flipped} onFlip={() => setFlipped(f => !f)} />
+
+                {/* Measurements row with edit */}
+                <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Your Measurements</span>
+                    <button
+                      onClick={handleRecheck}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-hover transition-colors"
+                    >
+                      <Pencil size={11} />
+                      Edit
+                    </button>
                   </div>
-                  <button
-                    onClick={handleRecheck}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-hover transition-colors"
-                  >
-                    <Pencil size={11} />
-                    Edit measurements
-                  </button>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    {[
+                      ['Ceiling', fmtStat(values.ceilingHeight, unit)],
+                      ['Depth',   fmtStat(values.roomDepth, unit)],
+                      ['Width',   fmtStat(values.roomWidth, unit)],
+                      ['Ceiling', values.ceilingMaterial || '—'],
+                    ].map(([k, v]) => (
+                      <div key={k + v} className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-gray-400">{k}</span>
+                        <span className="text-[11px] font-semibold text-gray-900 capitalize">{v}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                  {[
-                    ['Ceiling Height',   fmtStat(values.ceilingHeight, unit)],
-                    ['Room Depth',       fmtStat(values.roomDepth, unit)],
-                    ['Room Width',       fmtStat(values.roomWidth, unit)],
-                    ['Screen Distance',  fmtStat(values.screenDistance, unit)],
-                    ['Ceiling Material', values.ceilingMaterial || '—'],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">{k}</span>
-                      <span className="text-xs font-semibold text-gray-900 capitalize">{v}</span>
-                    </div>
-                  ))}
-                </div>
+              </div>
+
+              {/* Right: verdict + issues + save + shop — stretches to match left height */}
+              <div className="flex flex-col">
+                {result && <ResultsPanel result={result} />}
               </div>
             </div>
 
-            {/* Right: results panel */}
-            <div>
-              {result && (
-                <ResultsPanel result={result} components={comps} />
-              )}
-            </div>
+            {/* Below: What else you'll need — hidden when incompatible */}
+            {comps.length > 0 && result?.status !== 'incompatible' && (
+              <div className="space-y-8">
+
+                {/* What else you'll need */}
+                <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                  <div className="mb-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">What Else You'll Need</h3>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Source these separately before installation.</p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {comps.map((c, i) => (
+                      <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm h-24 flex flex-col justify-between">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-sm font-semibold text-gray-900 leading-tight">{c.name}</span>
+                          <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                            c.required ? 'bg-red-50 text-brand' : 'bg-amber-50 text-amber-600'
+                          }`}>
+                            {c.required ? 'Required' : 'Recommended'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-auto">
+                          <p className="flex-1 text-xs text-gray-500 leading-relaxed line-clamp-2">{c.reason}</p>
+                          {c.image && (
+                            <div className="shrink-0 w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center p-1">
+                              <img src={`${import.meta.env.BASE_URL}${c.image?.replace(/^\//, '')}`} alt={c.name} className="w-full h-full object-contain opacity-60" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* What's in the box */}
+                {inBox.length > 0 && (
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                    <div className="mb-4">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">What's in the Box</h3>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Everything included when you purchase the CLM PRO.</p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {inBox.map((c, i) => (
+                        <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm h-24 flex flex-col justify-between">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-sm font-semibold text-gray-900 leading-tight">{c.name}</span>
+                            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                              Included
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-auto">
+                            <p className="flex-1 text-xs text-gray-500 leading-relaxed line-clamp-2">{c.reason}</p>
+                            {c.image && (
+                              <div className="shrink-0 w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center p-2">
+                                <img src={`${import.meta.env.BASE_URL}${c.image?.replace(/^\//, '')}`} alt={c.name} className="w-full h-full object-contain opacity-50" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Support nudge */}
+                <div className="text-center py-2">
+                  <span className="text-xs text-gray-400">Still have questions? </span>
+                  <a href="#" className="text-xs font-semibold text-brand hover:text-brand-hover transition-colors">Contact support →</a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

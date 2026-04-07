@@ -2,97 +2,80 @@ import type { Measurements, ValidationResult, ValidationIssue, Component } from 
 
 // All thresholds stored in feet. Metric equivalents noted for reference.
 const T = {
-  ceilingHeight:  { hardMin: 8.86, hardMax: 10.5 },  // 2.7m – 3.2m (range, not higher-is-better)
-  roomDepth:      { hardMin: 13.78, recommended: 16.4 }, // 4.2m, 5.0m
-  roomWidth:      { hardMin: 9.84,  recommended: 13.78 }, // 3.0m, 4.2m
-  screenDistance: { hardMin: 6,     recommended: 8  },
+  ceilingHeight: { hardMin: 8.86, hardMax: 10.5 },     // 2.7m – 3.2m (range, not higher-is-better)
+  roomDepth:     { hardMin: 13.78, recommended: 16.4 }, // 4.2m, 5.0m
+  roomWidth:     { hardMin: 9.84,  recommended: 13.78 }, // 3.0m, 4.2m
 }
 
-export function validate(m: Measurements): ValidationResult {
+function fmt(ft: number, unit: 'imperial' | 'metric') {
+  return unit === 'metric'
+    ? `${(ft * 0.3048).toFixed(1)} m`
+    : `${ft.toFixed(1)} ft`
+}
+
+export function validate(m: Measurements, unit: 'imperial' | 'metric' = 'imperial'): ValidationResult {
   const issues: ValidationIssue[] = []
 
   // Ceiling height: supported range is 2.7m–3.2m (8.86ft–10.5ft)
   if (m.ceilingHeight < T.ceilingHeight.hardMin) {
     issues.push({
       field: 'ceilingHeight', severity: 'error',
-      message: `Ceiling height of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) is below the 2.7m minimum.`,
-      recommendation: 'CLM PRO requires at least 2.7m (9ft) of ceiling clearance. Consider the MLM2PRO for lower ceiling spaces.',
+      message: `Your ceiling is too low.`,
+      recommendation: `CLM PRO needs at least ${fmt(T.ceilingHeight.hardMin, unit)} of clearance. An MLM2PRO may be better suited for your room.`,
     })
   } else if (m.ceilingHeight > T.ceilingHeight.hardMax) {
     issues.push({
       field: 'ceilingHeight', severity: 'warning',
-      message: `Ceiling height of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) exceeds the 3.2m optimal range.`,
-      recommendation: 'A ceiling drop mount is required to lower the CLM PRO to its optimal 2.7–3.2m sensing height.',
+      message: `Your ceiling is high - you'll also need a drop mount.`,
+      recommendation: `At ${fmt(m.ceilingHeight, unit)}, a VESA drop mount is required to lower the CLM PRO into its optimal sensing range of ${fmt(T.ceilingHeight.hardMin, unit)}–${fmt(T.ceilingHeight.hardMax, unit)}.`,
     })
   }
 
   if (m.roomDepth < T.roomDepth.hardMin) {
     issues.push({
       field: 'roomDepth', severity: 'error',
-      message: `Room depth of ${m.roomDepth.toFixed(1)}ft (${(m.roomDepth * 0.3048).toFixed(1)}m) is below the 4.2m minimum.`,
-      recommendation: 'A minimum of 4.2m (14ft) is required from back wall to hitting position for safe ball flight.',
+      message: `Your room isn't deep enough - ${fmt(m.roomDepth, unit)} is too short.`,
+      recommendation: `A minimum of ${fmt(T.roomDepth.hardMin, unit)} is recommended for a safe swing and ball flight.`,
     })
   } else if (m.roomDepth < T.roomDepth.recommended) {
     issues.push({
       field: 'roomDepth', severity: 'warning',
-      message: `Room depth of ${m.roomDepth.toFixed(1)}ft (${(m.roomDepth * 0.3048).toFixed(1)}m) is in the functional but tight range.`,
-      recommendation: 'This depth is workable but may feel tight depending on golfer height and technique. Confirm the space feels comfortable before purchasing.',
+      message: `Room depth is tight at ${fmt(m.roomDepth, unit)}.`,
+      recommendation: `This can work but may feel cramped depending on your height and swing. Test the space before purchasing - ${fmt(T.roomDepth.recommended, unit)} is recommended.`,
     })
   }
 
   if (m.roomWidth < T.roomWidth.hardMin) {
     issues.push({
       field: 'roomWidth', severity: 'error',
-      message: `Room width of ${m.roomWidth.toFixed(1)}ft (${(m.roomWidth * 0.3048).toFixed(1)}m) is below the 3.0m minimum.`,
-      recommendation: '3.0m (10ft) of lateral clearance is the absolute minimum for a safe swing path.',
+      message: `Your room is too narrow.`,
+      recommendation: `We recommend at least ${fmt(T.roomWidth.hardMin, unit)} of side-to-side clearance for a full swing without hitting the walls.`,
     })
   } else if (m.roomWidth < T.roomWidth.recommended) {
     issues.push({
       field: 'roomWidth', severity: 'warning',
-      message: `Room width of ${m.roomWidth.toFixed(1)}ft (${(m.roomWidth * 0.3048).toFixed(1)}m) provides limited lateral swing clearance.`,
-      recommendation: '4.2m (14ft)+ recommended for comfortable clearance on both sides during a full swing.',
-    })
-  }
-
-  if (m.screenDistance < T.screenDistance.hardMin) {
-    issues.push({
-      field: 'screenDistance', severity: 'error',
-      message: `${m.screenDistance}ft screen distance is below the 6ft minimum.`,
-      recommendation: 'At least 6ft between hitting position and screen is required for safety.',
-    })
-  } else if (m.screenDistance < T.screenDistance.recommended) {
-    issues.push({
-      field: 'screenDistance', severity: 'warning',
-      message: `${m.screenDistance}ft is tight between golfer and screen.`,
-      recommendation: '8ft+ from hitting position to screen is recommended for a comfortable setup.',
-    })
-  }
-
-  if (m.screenDistance >= m.roomDepth) {
-    issues.push({
-      field: 'screenDistance', severity: 'error',
-      message: 'Screen distance is equal to or greater than your room depth.',
-      recommendation: 'Reduce screen distance or increase room depth — your hitting position must be inside the room.',
+      message: `Room width is tight at ${fmt(m.roomWidth, unit)}.`,
+      recommendation: `${fmt(T.roomWidth.recommended, unit)}+ is recommended for a comfortable clearance on both sides.`,
     })
   }
 
   if (m.ceilingMaterial === 'drop') {
     issues.push({
       field: 'ceilingMaterial', severity: 'warning',
-      message: 'Drop ceilings require a structural anchor kit.',
-      recommendation: 'You\'ll need to anchor through the drop tiles into the structural ceiling above. Kit sold separately.',
+      message: 'Drop ceiling - you\'ll need a structural anchor kit.',
+      recommendation: 'You\'ll need to anchor through the drop tiles into the structural ceiling above. Please ensure you purchase this separately.',
     })
   } else if (m.ceilingMaterial === 'concrete') {
     issues.push({
       field: 'ceilingMaterial', severity: 'warning',
-      message: 'Concrete/masonry ceilings require a masonry anchor kit.',
-      recommendation: 'A masonry anchor kit and masonry drill bits are required. Kit sold separately.',
+      message: 'Concrete ceiling - you\'ll need a masonry anchor kit.',
+      recommendation: 'A masonry drill and anchor kit are required for mounting into concrete. Please ensure you purchase these separately.',
     })
   } else if (m.ceilingMaterial === 'other') {
     issues.push({
-      field: 'ceilingMaterial', severity: 'error',
-      message: 'Non-standard ceiling material.',
-      recommendation: 'Contact Rapsodo support before purchasing to confirm your ceiling type is compatible.',
+      field: 'ceilingMaterial', severity: 'warning',
+      message: 'Ceiling type unverified - contact us before purchasing.',
+      recommendation: 'We can\'t confirm compatibility without knowing your ceiling type. Our team can help you figure out the right fix.',
     })
   }
 
@@ -101,89 +84,142 @@ export function validate(m: Measurements): ValidationResult {
   return { status, issues }
 }
 
-export function getComponents(m: Measurements): Component[] {
+export function getComponents(m: Measurements, unit: 'imperial' | 'metric' = 'imperial'): Component[] {
+  const needsDropMount = m.ceilingHeight > 10.5
+
+  // ── Screen frame max depth ────────────────────────────────────────────────
+  // CLM is mounted 1m closer to the screen than the hitting position (hitDepth = D × 0.55).
+  // The symmetric forward FOV angle (toward screen) limits how far the frame can protrude:
+  //   maxScrD = hitDepth − 2 × 1m  (clmZ − 1m, i.e. 1m in front of the CLM toward screen)
+  const M_TO_FT  = 1 / 0.3048
+  const hitDepth = m.roomDepth * 0.55
+  const maxScrD  = Math.max(0.5, hitDepth - 2 * M_TO_FT)
   const list: Component[] = [
     // ── Essential ──────────────────────────────────────────────────────
     {
-      name: 'Impact Screen or Net',
+      name: 'Impact Screen',
       category: 'Essential',
       included: false,
       required: true,
-      reason: 'Required surface to safely catch ball impact.',
+      reason: 'Multi-layer screen rated for driver speeds. Safely stops the ball.',
+      image: '/icons/impact-screen.webp',
     },
     {
-      name: 'Screen Frame / Enclosure',
+      name: 'Screen Frame',
       category: 'Essential',
       included: false,
       required: true,
-      reason: 'Structural surround and support for the impact screen or net.',
-    },
-    {
-      name: 'Ceiling Mounting Bracket',
-      category: 'Essential',
-      included: true,
-      required: true,
-      reason: 'Standard ceiling mount included with your CLM PRO.',
+      reason: `Keep the frame depth under ${fmt(maxScrD, unit)} from the wall — any deeper and it enters the CLM PRO's field of view.`,
+      image: '/icons/screen-frame.png',
     },
   ]
 
-  // Anchor kits — Essential when required by ceiling type
-  if (m.ceilingMaterial === 'drop') {
+  // ── Fixings based on ceiling material ────────────────────────────────────
+  if (m.ceilingMaterial === 'drywall') {
     list.push({
-      name: 'Structural Anchor Kit',
+      name: 'Ceiling Screws & Plugs',
       category: 'Essential',
       included: false,
       required: true,
-      reason: 'Required for mounting through drop ceiling tiles into the structural ceiling above.',
+      reason: 'M6 × 50mm timber screws into joists. Nylon plugs where joists aren\'t accessible.',
+      image: '/icons/screw.png',
     })
-  }
-  if (m.ceilingMaterial === 'concrete') {
+  } else if (m.ceilingMaterial === 'drop') {
+    list.push({
+      name: 'Toggle Bolt Kit',
+      category: 'Essential',
+      included: false,
+      required: true,
+      reason: 'M8 toggle bolts that anchor into the structural ceiling above the drop tiles.',
+      image: '/icons/toggle-bolt.png',
+    })
+  } else if (m.ceilingMaterial === 'concrete') {
     list.push({
       name: 'Masonry Anchor Kit',
       category: 'Essential',
       included: false,
       required: true,
-      reason: 'Required for mounting into concrete or masonry ceilings.',
+      reason: 'M8 sleeve anchors with a masonry bit. Standard screws won\'t hold in concrete.',
+      image: '/icons/masonry-anchor.png',
+    })
+  } else if (m.ceilingMaterial === 'wood') {
+    list.push({
+      name: 'Structural Lag Screws',
+      category: 'Essential',
+      included: false,
+      required: true,
+      reason: 'M8 × 80mm lag screws direct into the beam. No anchors needed.',
+      image: '/icons/lag-screw.png',
     })
   }
 
-  // ── Recommended ────────────────────────────────────────────────────
-  list.push(
-    {
-      name: 'Ethernet Cable',
-      category: 'Recommended',
+  // Drop mount — required when ceiling > 3.2m (10.5ft)
+  if (needsDropMount) {
+    list.push({
+      name: 'Ceiling Drop Mount',
+      category: 'Essential',
       included: false,
-      required: false,
-      reason: 'More stable than Wi-Fi for real-time shot data. Highly recommended.',
-    },
+      required: true,
+      reason: `Lowers the CLM PRO to its ideal ${fmt(9.84, unit)} sensing height from your ${fmt(m.ceilingHeight, unit)} ceiling.`,
+      image: '/icons/drop-mount.png',
+    })
+  }
+
+  // ── Recommended ──────────────────────────────────────────────────────────
+  list.push(
     {
       name: 'Projector',
       category: 'Recommended',
       included: false,
       required: false,
-      reason: 'Projects simulator visuals onto your screen for the full simulator experience.',
-      note: 'Not required — a second monitor or TV works fine. A projector gives the most immersive setup.',
+      reason: 'Short-throw projector for the full simulator experience. ≥3000 lumens recommended.',
+      image: '/icons/projector.png',
+    },
+    {
+      name: 'Ethernet Cable',
+      category: 'Recommended',
+      included: false,
+      required: false,
+      reason: 'More reliable than Wi-Fi. Run a Cat6 cable to the hitting position.',
+      image: '/icons/ethernet-cable.png',
     },
     {
       name: 'HDMI Cable',
       category: 'Recommended',
       included: false,
       required: false,
-      reason: 'Connects your PC to a projector or secondary display for simulator visuals.',
+      reason: 'Connects your PC to the projector or display. Go 4K-rated if supported.',
+      image: '/icons/hdmi-cable.png',
     },
   )
 
-  // Ceiling drop mount — required when ceiling > 3.2m (10.5ft), which puts CLM above its sensing range
-  if (m.ceilingHeight > 10.5) {
-    list.push({
-      name: 'Ceiling Drop Mount',
-      category: 'Essential',
-      included: false,
+  // ── What's in the box ─────────────────────────────────────────────────────
+  list.push(
+    {
+      name: 'CLM PRO Device',
+      category: 'InBox',
+      included: true,
       required: true,
-      reason: `Your ceiling of ${m.ceilingHeight.toFixed(1)}ft (${(m.ceilingHeight * 0.3048).toFixed(1)}m) exceeds the 3.2m optimal sensing height. A drop mount is required to position the CLM PRO correctly.`,
-      note: 'Look for a VESA-compatible ceiling drop mount with adjustable pole length.',
-    })
-  }
+      reason: 'Your launch monitor, ready to ceiling-mount above the hitting position.',
+      image: '/icons/clm-device.jpg',
+    },
+    {
+      name: 'Power Cable',
+      category: 'InBox',
+      included: true,
+      required: true,
+      reason: 'Mains power cable. Ensure an outlet is within reach of the mount point.',
+      image: '/icons/power-cable.png',
+    },
+    {
+      name: 'Ceiling Mounting Bracket',
+      category: 'InBox',
+      included: true,
+      required: true,
+      reason: 'Standard bracket for drywall and timber. Other ceiling types need an anchor kit.',
+      image: '/icons/ceiling-mount.png',
+    },
+  )
 
   return list
 }
@@ -193,7 +229,6 @@ export function isComplete(m: Partial<Measurements>): m is Measurements {
     m.ceilingHeight  != null && m.ceilingHeight  > 0 &&
     m.roomDepth      != null && m.roomDepth      > 0 &&
     m.roomWidth      != null && m.roomWidth      > 0 &&
-    m.screenDistance != null && m.screenDistance > 0 &&
     m.ceilingMaterial != null && m.ceilingMaterial !== ''
   )
 }

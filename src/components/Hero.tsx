@@ -81,7 +81,7 @@ export default function Hero() {
 function HeroIllustration() {
   return (
     <svg viewBox="0 0 420 320" className="w-full max-w-[420px]" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Room: back wall */}
+      {/* Room: screen wall */}
       <polygon points="80,40 340,40 340,240 80,240" fill="#F5F5F5" stroke="#DDDDDD" strokeWidth="1.5" />
       {/* Floor */}
       <polygon points="80,240 340,240 390,290 30,290" fill="#EBEBEB" stroke="#DDDDDD" strokeWidth="1.5" />

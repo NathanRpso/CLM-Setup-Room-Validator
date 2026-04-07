@@ -1,10 +1,9 @@
 export type CeilingMaterial = 'drywall' | 'drop' | 'concrete' | 'wood' | 'other'
 
 export interface Measurements {
-  ceilingHeight:  number   // feet
-  roomDepth:      number   // feet
-  roomWidth:      number   // feet
-  screenDistance: number   // feet — hitting position to screen/net
+  ceilingHeight:   number   // feet
+  roomDepth:       number   // feet
+  roomWidth:       number   // feet
   ceilingMaterial: CeilingMaterial | ''
 }
 
@@ -22,9 +21,10 @@ export interface ValidationResult {
 
 export interface Component {
   name: string
-  category: 'Essential' | 'Recommended'
+  category: 'Essential' | 'Recommended' | 'InBox'
   included: boolean
   required: boolean
   reason: string
   note?: string
+  image?: string
 }
