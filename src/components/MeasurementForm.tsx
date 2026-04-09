@@ -13,7 +13,6 @@ interface Props {
 
 const ceilingMaterials: { value: CeilingMaterial; label: string; sub: string }[] = [
   { value: 'drywall',  label: 'Drywall',       sub: 'Standard stud framing' },
-  { value: 'drop',     label: 'Drop Ceiling',   sub: 'Suspended tiles' },
   { value: 'concrete', label: 'Concrete',       sub: 'Masonry / block' },
   { value: 'wood',     label: 'Wood / Beam',    sub: 'Exposed timber' },
   { value: 'other',    label: 'Other',          sub: 'Unsure or unusual' },

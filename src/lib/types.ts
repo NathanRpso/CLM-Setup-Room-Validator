@@ -1,4 +1,4 @@
-export type CeilingMaterial = 'drywall' | 'drop' | 'concrete' | 'wood' | 'other'
+export type CeilingMaterial = 'drywall' | 'concrete' | 'wood' | 'other'
 
 export interface Measurements {
   ceilingHeight:   number   // feet

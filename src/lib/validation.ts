@@ -59,13 +59,7 @@ export function validate(m: Measurements, unit: 'imperial' | 'metric' = 'imperia
     })
   }
 
-  if (m.ceilingMaterial === 'drop') {
-    issues.push({
-      field: 'ceilingMaterial', severity: 'warning',
-      message: 'Drop ceiling - you\'ll need a structural anchor kit.',
-      recommendation: 'You\'ll need to anchor through the drop tiles into the structural ceiling above. Please ensure you purchase this separately.',
-    })
-  } else if (m.ceilingMaterial === 'concrete') {
+  if (m.ceilingMaterial === 'concrete') {
     issues.push({
       field: 'ceilingMaterial', severity: 'warning',
       message: 'Concrete ceiling - you\'ll need a masonry anchor kit.',
@@ -123,15 +117,6 @@ export function getComponents(m: Measurements, unit: 'imperial' | 'metric' = 'im
       required: true,
       reason: 'M6 × 50mm timber screws into joists. Nylon plugs where joists aren\'t accessible.',
       image: '/icons/screw.png',
-    })
-  } else if (m.ceilingMaterial === 'drop') {
-    list.push({
-      name: 'Toggle Bolt Kit',
-      category: 'Essential',
-      included: false,
-      required: true,
-      reason: 'M8 toggle bolts that anchor into the structural ceiling above the drop tiles.',
-      image: '/icons/toggle-bolt.png',
     })
   } else if (m.ceilingMaterial === 'concrete') {
     list.push({
